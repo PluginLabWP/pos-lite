@@ -1,0 +1,48 @@
+name: Import current POS Lite release
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - '.github/workflows/import-current-release.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  import-release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Import POS Lite v0.5.14 source
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -rf /tmp/poslite-release
+          mkdir -p /tmp/poslite-release
+          unzip -q releases/pos-lite-v0.5.14-setup-health.zip -d /tmp/poslite-release
+          test -f /tmp/poslite-release/pos-lite/pos-lite.php
+          cp -a /tmp/poslite-release/pos-lite/. ./
+
+      - name: Verify imported version
+        shell: bash
+        run: |
+          grep -q 'Version:           0.5.14' pos-lite.php
+          grep -q "define( 'POSLITE_VERSION', '0.5.14' )" pos-lite.php
+
+      - name: Commit imported source
+        shell: bash
+        run: |
+          git config user.name 'PluginLab Release Bot'
+          git config user.email 'actions@users.noreply.github.com'
+          git add README.md pos-lite.php app includes
+          if git diff --cached --quiet; then
+            echo 'Source already matches release archive.'
+          else
+            git commit -m 'Import full POS Lite v0.5.14 source tree'
+            git push
+          fi
